@@ -42,7 +42,6 @@ namespace SocketClient {
 
         private void btnInvia_Click(object sender, EventArgs e) {
             #region Verifico i dati ricevuti e li mando o come testo o come JSON
-            // Rimuovo spazi e controllo che il messaggio non sia vuoto
             textInvio.Text = textInvio.Text.Trim();
             if (string.IsNullOrEmpty(textInvio.Text)) {
                 MessageBox.Show("Inserire un messaggio da inviare", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -51,7 +50,6 @@ namespace SocketClient {
 
             IPAddress ipAddress;
             try {
-                // Controllo e parso l'indirizzo IP del server
                 textIpServer.Text = textIpServer.Text.Trim();
                 ipAddress = IPAddress.Parse(textIpServer.Text);
             }
@@ -60,15 +58,9 @@ namespace SocketClient {
                 return;
             }
 
-            // Ottengo la data e ora attuale
             string date = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
+            string messageToSend = $"{Dns.GetHostName()} | {comboIpClient.Text} | {date} | {textInvio.Text}";
 
-            string messageToSend;
-
-            // Costruisco il messaggio da inviare
-            messageToSend = $"{Dns.GetHostName()} | {comboIpClient.Text} | {date} | {textInvio.Text}";
-
-            // Loggo il messaggio in uscita
             textRx.AppendLine($"[CLIENT] {date} > Inviando messaggio...");
             textRx.AppendLine($"[CLIENT] Messaggio: {messageToSend}");
             #endregion
@@ -76,19 +68,16 @@ namespace SocketClient {
             #region Invio del messaggio al server
             Socket clientSocket = null;
             try {
-                // Creo un endpoint remoto e socket TCP
                 IPEndPoint remoteEP = new IPEndPoint(ipAddress, (int)numPort.Value);
                 clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 clientSocket.Connect(remoteEP);
 
-                // Verifico la connessione
                 if (!clientSocket.Connected) {
                     MessageBox.Show("Connessione al server non riuscita.", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     textRx.AppendLine("[CLIENT] " + date + " > CONNESSIONE AL SERVER NON RIUSCITA.");
                     return;
                 }
 
-                // Invio il messaggio al server
                 byte[] msg = Encoding.UTF8.GetBytes(messageToSend + Environment.NewLine);
                 clientSocket.Send(msg);
 
@@ -98,17 +87,19 @@ namespace SocketClient {
 
                 if (bytesRec > 0) {
                     string response = Encoding.UTF8.GetString(buffer, 0, bytesRec);
-                    textRx.AppendLine("[SERVER] " + date + " > " + response);
+                    textRx.AppendLine("[SERVER] " + date + " > " + response.Trim());
                 }
             }
             catch (Exception ex) {
-                // Gestione errori di connessione o invio/ricezione
                 MessageBox.Show("Errore:\n" + ex, "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally {
-                // Chiudo la connessione in modo sicuro
                 if (clientSocket != null) {
-                    clientSocket.Shutdown(SocketShutdown.Both);
+                    try {
+                        if (clientSocket.Connected)
+                            clientSocket.Shutdown(SocketShutdown.Both);
+                    }
+                    catch { }
                     clientSocket.Close();
                 }
                 textRx.AppendLine("[CLIENT] " + date + " > CONNESSIONE CHIUSA CON SUCCESSO.");
